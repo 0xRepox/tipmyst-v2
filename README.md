@@ -1,120 +1,197 @@
-# FHEVM React Template
+# TipMyst — Confidential Creator Tipping on Ethereum
 
-A minimal React + Foundry template for building FHEVM-enabled dApps. Ships with `FHECounter.sol` (a trivial encrypted counter) and a Next.js frontend that reads, writes, and decrypts its value.
+> **Zama Developer Program Season 2 · Builder Track submission**
 
-FHEVM (Fully Homomorphic Encryption Virtual Machine) lets smart contracts compute on encrypted data. Inputs, storage, and ciphertext handles stay private; only authorized callers can decrypt.
+TipMyst is a decentralized tipping platform where **tip amounts are fully encrypted on-chain** using [Zama FHEVM](https://docs.zama.ai/protocol). Supporters send encrypted tips to creators; no one — not the creator, not the blockchain, not any observer — can see how much was sent. Only the recipient can decrypt their own balance.
 
-## Stack
+**Live demo:** https://tipmyst-v2.vercel.app
+**Smart contracts on Sepolia:**
 
-- **Contracts** — Foundry, Solidity 0.8.27, [forge-fhevm](https://github.com/zama-ai/forge-fhevm) for host contracts + testing helpers
-- **Frontend** — Next.js 15 (App Router), React 19, wagmi, viem, RainbowKit, Tailwind + daisyUI
-- **FHE SDK** — `@zama-fhe/sdk` + `@zama-fhe/react-sdk` v3; `RelayerCleartext` on localhost, `RelayerWeb` on Sepolia
+- TipMyst: [`0x9C6174C7E452C5ECe8A87E639Da10eb9db0a6439`](https://sepolia.etherscan.io/address/0x9C6174C7E452C5ECe8A87E639Da10eb9db0a6439)
+- MYSTToken (confidential ERC-20): [`0xE83A10Fb404Fecc97bAf2AA35Cd13Bc35eCf6F2e`](https://sepolia.etherscan.io/address/0xE83A10Fb404Fecc97bAf2AA35Cd13Bc35eCf6F2e)
 
-## Prerequisites
+---
 
-Node.js ≥ 20, pnpm, [Foundry](https://book.getfoundry.sh/getting-started/installation) (`forge` / `anvil` / `cast`), `jq`, MetaMask.
+## Why FHE?
 
-## Quick start
+Traditional on-chain tipping exposes every amount to every blockchain observer. Supporters may not want their spending public; creators' incomes become visible to competitors. FHE solves this by letting the smart contract **perform arithmetic on ciphertext** — adding an encrypted tip to an encrypted balance — without ever decrypting either value.
+
+| Property                          | Traditional tipping | TipMyst               |
+| --------------------------------- | ------------------- | --------------------- |
+| Tip amount visible on-chain       | Public              | Encrypted             |
+| Recipient balance visible         | Public              | Encrypted             |
+| Verifiable on-chain provenance    | Yes                 | Yes                   |
+| Recipient can check their balance | Yes                 | Yes (EIP-712 decrypt) |
+
+---
+
+## How It Works
+
+```
+Supporter                     Browser (Zama SDK)             Sepolia (FHEVM)
+   │                                  │                             │
+   │  Enter tip amount (e.g. 50)      │                             │
+   ├─────────────────────────────────►│                             │
+   │                                  │  encrypt(50) → ciphertext   │
+   │                                  ├────────────────────────────►│
+   │                                  │  TipMyst.sendTip(cipher)    │
+   │                                  │  FHE.add(balance, amount)   │
+   │                                  │◄────────────────────────────┤
+   │  Tip confirmed                   │  emit TipSent(from, to)     │
+```
+
+1. **Connect wallet** — MetaMask or any Web3 wallet on Sepolia
+2. **Claim free MYST** — 10 MYST from the built-in faucet (24h cooldown)
+3. **Choose role** — _Supporter_ (send tips) or _Creator_ (register profile)
+4. **Encrypt & send** — the Zama SDK encrypts the amount in-browser; the ciphertext is signed with EIP-712 and submitted
+5. **Decrypt balance** — the recipient signs an EIP-712 request; the Zama gateway decrypts only for that key-holder
+
+---
+
+## Architecture
+
+```
+packages/
+├── foundry/                   Solidity contracts + Forge tests
+│   ├── src/
+│   │   ├── MYSTToken.sol      Confidential ERC-20 (FHEVM ConfidentialERC20)
+│   │   └── TipMyst.sol        Creator registry + encrypted tipping
+│   ├── script/
+│   │   └── DeployTipMyst.s.sol
+│   └── test/
+│       └── TipMyst.t.sol      15 tests (faucet, registration, tips)
+│
+└── nextjs/                    Next.js 16 frontend
+    ├── app/page.tsx            Landing + role selector + app shell
+    ├── components/tipmyst/
+    │   ├── BalanceCard.tsx     Encrypted balance + decrypt flow
+    │   ├── CreatorList.tsx     Browse creators + inline tip form
+    │   └── RegisterCard.tsx    Creator profile registration
+    ├── hooks/tipmyst/
+    │   └── useTipMyst.tsx      All contract interactions + Zama SDK
+    └── contracts/
+        ├── TipMyst.ts          ABI + Sepolia address
+        └── MYSTToken.ts        ABI + Sepolia address
+```
+
+### MYSTToken.sol
+
+A `ConfidentialERC20` token — balances stored as `euint64` (encrypted 64-bit integers):
+
+```solidity
+function claimFaucet() external           // 10 MYST, 24h cooldown per address
+function canClaimFaucet(address) view      // check cooldown status
+```
+
+### TipMyst.sol
+
+```solidity
+function registerCreator(string name, string bio, string imageUrl) external
+function sendTip(address creator, externalEuint64 encryptedAmount, bytes inputProof) external
+function getAllCreators() external view returns (address[])
+function getCreator(address) external view returns (Creator)
+```
+
+`sendTip` calls `token.transferFrom(msg.sender, creator, amount)` — the token contract performs `FHE.add` on ciphertext. No plaintext amount ever exists on-chain.
+
+---
+
+## FHE Implementation Details
+
+### Encryption (client-side)
+
+```ts
+const instance = await getInstance();
+const { handles, inputProof } = instance
+  .createEncryptedInput(TipMystAddress, address)
+  .add64(BigInt(amount * 1_000_000)) // 6 decimal places
+  .encrypt();
+await writeContractAsync({
+  functionName: "sendTip",
+  args: [creatorAddress, handles[0], inputProof],
+});
+```
+
+### Decryption (EIP-712)
+
+```ts
+const { publicKey, privateKey } = instance.generateKeypair();
+const eip712 = instance.createEIP712(publicKey, MYSTTokenAddress);
+const signature = await signTypedDataAsync(eip712.domain, eip712.types, eip712.message);
+const decrypted = await instance.userDecrypt(
+  { handle: balanceHandle, contractAddress: MYSTTokenAddress },
+  privateKey,
+  publicKey,
+  signature,
+  MYSTTokenAddress,
+  address,
+);
+```
+
+The private key never leaves the browser. The Zama KMS gateway verifies the EIP-712 signature, confirms the caller owns the address, and returns the decrypted value.
+
+---
+
+## Tech Stack
+
+| Layer           | Technology                           |
+| --------------- | ------------------------------------ |
+| FHE             | Zama FHEVM · `@fhevm/solidity`       |
+| Blockchain      | Ethereum Sepolia Testnet             |
+| Smart contracts | Solidity 0.8.27 · Foundry            |
+| Frontend        | Next.js 16.2 (App Router, Turbopack) |
+| Wallet          | RainbowKit + wagmi v2 + viem         |
+| Zama React SDK  | `@zama-ai/react-fhevm`               |
+| Styling         | Tailwind CSS v4 + DaisyUI 5          |
+| Deployment      | Vercel                               |
+
+---
+
+## Local Development
+
+### Prerequisites
+
+- Node.js 18+, pnpm 8+
+- Foundry: `curl -L https://foundry.paradigm.xyz | bash && foundryup`
+- MetaMask with Sepolia testnet + Sepolia ETH (faucet.sepolia.dev)
+
+### Setup
 
 ```bash
-pnpm install            # node deps + husky + regenerate ABIs
-pnpm contracts:install  # forge soldeer install — required before `pnpm chain`
+git clone https://github.com/0xRepox/tipmyst-v2
+cd tipmyst-v2/packages/nextjs
+pnpm install
+cp .env.local.example .env.local   # fill in keys below
+pnpm dev                           # → http://localhost:3000
 ```
 
-### Local
+### Environment Variables
+
+| Variable                                | Required | Description                     |
+| --------------------------------------- | -------- | ------------------------------- |
+| `NEXT_PUBLIC_ALCHEMY_API_KEY`           | Yes      | Alchemy API key for Sepolia RPC |
+| `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` | Yes      | WalletConnect Cloud project ID  |
+
+### Foundry Tests
 
 ```bash
-# Terminal 1 — anvil + FHEVM cleartext host + FHECounter
-pnpm chain
-
-# Terminal 2 — frontend (http://localhost:3000)
-pnpm start
+cd packages/foundry
+forge test -vv
+# 15 tests: faucet, creator registration, tipping, getAllCreators
 ```
 
-Add the local network to MetaMask: RPC `http://127.0.0.1:8545`, chain id `31337`. Import any anvil dev account (e.g. private key `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`, address `0xf39F…2266`, 10 000 ETH).
+---
 
-To redeploy `FHECounter` without restarting anvil: `pnpm deploy:localhost`.
+## Submission Notes
 
-### Sepolia
+- **Track:** Builder Track — Zama Developer Program Season 2
+- **FHE use case:** Confidential creator economy — encrypted tip amounts and balances
+- **Smart contract + frontend:** Deployed and live on Sepolia
+- **Zama SDK:** `@fhevm/solidity` + `@zama-ai/react-fhevm`
+- **Network:** Ethereum Sepolia Testnet (Zama FHEVM gateway)
 
-```bash
-cp .env.example .env.local   # then fill in the three values below
-```
-
-```bash
-DEPLOYER_PRIVATE_KEY=0x...                         # deployer funded with Sepolia ETH
-SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
-ETHERSCAN_API_KEY=...                              # optional, enables --verify
-```
-
-Add an Alchemy key to `packages/nextjs/.env.local`:
-
-```bash
-NEXT_PUBLIC_ALCHEMY_API_KEY=YOUR_KEY
-```
-
-Deploy + run:
-
-```bash
-pnpm deploy:sepolia
-pnpm start
-```
-
-## Scripts
-
-| Command                  | What it does                                                                                 |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `pnpm chain`             | Anvil + FHEVM cleartext host + `FHECounter` on port 8545                                     |
-| `pnpm deploy:localhost`  | Deploys `FHECounter` to local anvil, then regenerates frontend ABIs                          |
-| `pnpm deploy:sepolia`    | Deploys to Sepolia (reads `.env.local`), then regenerates frontend ABIs                      |
-| `pnpm contracts:install` | `forge soldeer install` — fetches forge-fhevm and other contract deps                        |
-| `pnpm contracts:build`   | `forge build` in `packages/foundry`                                                          |
-| `pnpm contracts:test`    | `forge test -vv` in `packages/foundry`                                                       |
-| `pnpm generate`          | Emits `packages/nextjs/contracts/<Name>.ts` + `<Name>.local.ts` from forge broadcasts + out/ |
-| `pnpm start`             | `next dev`                                                                                   |
-| `pnpm next:build`        | Production build of the frontend                                                             |
-| `pnpm next:check-types`  | TypeScript check on the frontend                                                             |
-| `pnpm lint`              | Lint the frontend                                                                            |
-| `pnpm format`            | Prettier over the whole repo (`format:check` for no-write)                                   |
-
-## Project structure
-
-```
-fhevm-react-template/
-├── scripts/                       # chain.sh, deploy-*.sh, generateTsAbis.ts
-├── packages/foundry/              # Solidity contracts
-│   ├── src/FHECounter.sol
-│   ├── script/DeployFHECounter.s.sol
-│   └── test/FHECounter.t.sol      # inherits forge-fhevm's FhevmTest
-└── packages/nextjs/               # Frontend
-    ├── components/DappWrapperWithProviders.tsx   # wires ZamaProvider + relayer
-    ├── hooks/fhecounter-example/useFHECounterWagmi.tsx
-    ├── contracts/
-    │   ├── FHECounter.ts          # non-local (Sepolia, …) — tracked
-    │   └── FHECounter.local.ts    # chainId 31337 overlay — gitignored
-    └── utils/contract.ts          # ContractDeployment + deploymentFor()
-```
-
-The per-contract `Name.ts` imports `Name.local.ts` and merges at module load, so consumer code is agnostic to which chain a deployment lives on. `postinstall` regenerates both on every `pnpm install`, including an empty stub sidecar on a fresh clone.
-
-## Troubleshooting
-
-- **MetaMask nonce mismatch after restarting anvil** — MetaMask → Settings → Advanced → _Clear activity tab data_.
-- **Stale view-function results** — MetaMask caches across reloads; restart the browser (not the tab).
-- **`Contract address is not a valid address`** — the relayer SDK requires EIP-55 checksummed addresses. Rerun `pnpm generate`.
-- **`pnpm install` asks for a package manager version** — the root pins `packageManager: "pnpm@10.18.3"`. `corepack prepare pnpm@10.18.3 --activate` or match locally.
-
-## FHEVM notes
-
-- **ACL is mandatory.** Every encrypted value needs `FHE.allowThis(handle)` + `FHE.allow(handle, user)` — reads silently fail without it. `FHECounter.sol` does this explicitly.
-- **Types are baked into ciphertext handles.** The frontend's `type: "euint32"` must match the contract's `externalEuint32` parameter — mismatch reverts with `InvalidType()`.
-- **Local runs cleartext mode.** Anvil hosts a `CleartextFHEVMExecutor` that mirrors every FHE op into a `plaintexts(bytes32)` mapping. No KMS, no gateway, no WASM — `RelayerCleartext` reads plaintext directly. Dev-only.
-- **Sepolia uses the real relayer.** `RelayerWeb` spins up a Web Worker and pulls FHE crypto from Zama's CDN. Needs `NEXT_PUBLIC_ALCHEMY_API_KEY`.
-
-## References
-
-[Zama Protocol docs](https://docs.zama.org/) · [`@zama-fhe/sdk`](https://github.com/zama-ai/sdk) · [forge-fhevm](https://github.com/zama-ai/forge-fhevm) · [OpenZeppelin Confidential Contracts](https://github.com/OpenZeppelin/openzeppelin-confidential-contracts) · [Discord](https://discord.com/invite/zama)
+---
 
 ## License
 
-BSD-3-Clause-Clear. See [LICENSE](LICENSE).
+MIT
