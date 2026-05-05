@@ -136,3 +136,314 @@
 .link:hover {
   opacity: 80%;
 }
+
+/* ── Premium TipMyst Dark Theme ──────────────────────────────────────── */
+
+body,
+:root,
+[data-theme] {
+  background: #080808 !important;
+  color: #ffffff;
+}
+
+/* ── Cards ── */
+.premium-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 24px;
+  transition: border-color 0.2s ease;
+}
+
+.premium-card-hover:hover {
+  border-color: rgba(254, 209, 10, 0.25);
+}
+
+/* ── Buttons ── */
+.gold-button {
+  background: #fed10a;
+  color: #0a0a0a;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.gold-button:hover:not(:disabled) {
+  background: #f0c400;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(254, 209, 10, 0.3);
+}
+
+.gold-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.blue-button {
+  background: #6ba292;
+  color: #ffffff;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.blue-button:hover:not(:disabled) {
+  background: #5d9083;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(107, 162, 146, 0.3);
+}
+
+.blue-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.outline-gold-button {
+  background: transparent;
+  color: #fed10a;
+  font-weight: 600;
+  border: 1px solid rgba(254, 209, 10, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.outline-gold-button:hover:not(:disabled) {
+  border-color: #fed10a;
+  background: rgba(254, 209, 10, 0.08);
+}
+
+.outline-gold-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Text ── */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #fed10a 0%, #f5a623 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.teal-text {
+  color: #6ba292;
+}
+
+/* ── Inputs ── */
+.premium-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 12px 16px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s ease;
+  font-size: 14px;
+}
+
+.premium-input:focus {
+  border-color: #fed10a;
+  box-shadow: 0 0 0 3px rgba(254, 209, 10, 0.08);
+}
+
+.premium-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.premium-textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 12px 16px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s ease;
+  font-size: 14px;
+  resize: none;
+}
+
+.premium-textarea:focus {
+  border-color: #fed10a;
+  box-shadow: 0 0 0 3px rgba(254, 209, 10, 0.08);
+}
+
+.premium-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Alerts ── */
+.alert-info {
+  background: rgba(107, 162, 146, 0.12);
+  border: 1px solid rgba(107, 162, 146, 0.25);
+  border-radius: 8px;
+  color: #6ba292;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.alert-success {
+  background: rgba(52, 238, 182, 0.1);
+  border: 1px solid rgba(52, 238, 182, 0.25);
+  border-radius: 8px;
+  color: #34eeb6;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.alert-warning {
+  background: rgba(254, 209, 10, 0.1);
+  border: 1px solid rgba(254, 209, 10, 0.25);
+  border-radius: 8px;
+  color: #fed10a;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.alert-error {
+  background: rgba(255, 88, 63, 0.1);
+  border: 1px solid rgba(255, 88, 63, 0.25);
+  border-radius: 8px;
+  color: #ff583f;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+/* ── Badges ── */
+.gold-badge {
+  display: inline-block;
+  background: rgba(254, 209, 10, 0.12);
+  color: #fed10a;
+  border: 1px solid rgba(254, 209, 10, 0.25);
+  border-radius: 9999px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.blue-badge {
+  display: inline-block;
+  background: rgba(107, 162, 146, 0.12);
+  color: #6ba292;
+  border: 1px solid rgba(107, 162, 146, 0.25);
+  border-radius: 9999px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Spinner ── */
+.gold-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(254, 209, 10, 0.2);
+  border-top-color: #fed10a;
+  border-radius: 50%;
+  animation: tmSpin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes tmSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Float animation (background blobs) ── */
+@keyframes tmFloat {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  33% {
+    transform: translateY(-18px) scale(1.02);
+  }
+  66% {
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
+.float-animation {
+  animation: tmFloat 10s ease-in-out infinite;
+}
+
+/* ── Entrance animations ── */
+@keyframes tmFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-1 {
+  animation: tmFadeUp 0.5s ease forwards 0.1s;
+  opacity: 0;
+}
+.stagger-2 {
+  animation: tmFadeUp 0.5s ease forwards 0.2s;
+  opacity: 0;
+}
+.stagger-3 {
+  animation: tmFadeUp 0.5s ease forwards 0.3s;
+  opacity: 0;
+}
+.stagger-4 {
+  animation: tmFadeUp 0.5s ease forwards 0.4s;
+  opacity: 0;
+}
+
+/* ── Divider ── */
+.gold-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(254, 209, 10, 0.3), transparent);
+  margin: 16px 0;
+  border: none;
+}
+
+/* ── Custom scrollbar ── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(254, 209, 10, 0.25);
+  border-radius: 2px;
+}
+
+/* ── Stat card ── */
+.stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 16px 20px;
+  text-align: center;
+}
